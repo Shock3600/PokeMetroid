@@ -2,6 +2,7 @@ ENTRY(Start)
 
 gNumMusicPlayers = 4;
 gMaxLines = 0;
+gInitialMainCB2 = CB2_InitCopyrightScreenAfterBootup;
 
 MEMORY
 {
@@ -11,12 +12,17 @@ MEMORY
 }
 
 SECTIONS {
-
     ewram 0x2000000 (NOLOAD) :
     ALIGN(4)
     {
+        /* 
+           We link malloc.o here to prevent `gHeap` from landing in the middle of EWRAM.
+           Otherwise this causes corruption issues on some ld versions
+        */
+        gflib/malloc.o(ewram_data);
         src/*.o(ewram_data);
         gflib/*.o(ewram_data);
+
     } > EWRAM
 
     iwram 0x3000000 (NOLOAD) :
@@ -44,6 +50,7 @@ SECTIONS {
     {
         src/rom_header.o(.text*);
         src/rom_header_gf.o(.text.*);
+        src/rom_header_rhh.o(.text.*);
         src/crt0.o(.text);
         src/main.o(.text);
         gflib/*.o(.text*);
@@ -107,7 +114,7 @@ SECTIONS {
         *libc.a:*.o(.rodata*);
         *libc.a:*.o(.data*);
         src/libisagbprn.o(.rodata);
-    } =0
+    } > ROM =0
 
     multiboot_data :
     ALIGN(4)
@@ -117,17 +124,13 @@ SECTIONS {
         data/multiboot_pokemon_colosseum.o(.rodata);
     } > ROM =0
 
-    anim_mon_front_pic_data :
-    ALIGN(4)
-    {
-        src/anim_mon_front_pics.o(.rodata);
-    } > ROM =0
-
     gfx_data :
     ALIGN(4)
     {
         src/graphics.o(.rodata);
     } > ROM =0
+
+    __rom_end = .;
 
     /* DWARF debug sections.
        Symbols in the DWARF debugging sections are relative to the beginning
